@@ -8,7 +8,7 @@
     <!-- SDKs do Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         // ⚠️ ATENÇÃO: Substitua pelos dados do seu projeto no Firebase
         const firebaseConfig = {
@@ -33,6 +33,12 @@
         window.saveDailySchedule = function(dateStr, scheduleData) {
             return set(ref(db, `escala_acabamento/escalas/${dateStr}`), scheduleData)
                 .catch(err => console.error("Erro ao salvar escala:", err));
+        };
+
+        // Limpa todos os dados no Firebase
+        window.removeAllFirebaseData = function() {
+            return remove(ref(db, 'escala_acabamento'))
+                .catch(err => console.error("Erro ao apagar dados:", err));
         };
 
         // Escuta atualizações no banco de dados
@@ -708,7 +714,6 @@
         }
 
         function renderCurrentView() {
-            // Limpa o campo e a pool para re-renderizar com o estado salvo da data
             document.querySelectorAll('.person-card').forEach(card => card.remove());
 
             const people = globalDatabaseData.pessoas || [];
@@ -719,7 +724,6 @@
                 const card = createPersonCard(person.id, person.rawName, person.defaultOff);
                 const isBlocked = person.defaultOff === 'ferias' || person.defaultOff === 'licenca' || selectedOffGroups.includes(person.defaultOff);
 
-                // Verifica se há salvamento para esse colaborador NESTA data exata
                 const assignedMachineId = dailySchedule[person.id];
 
                 if (assignedMachineId && assignedMachineId !== 'pool' && !isBlocked) {
@@ -731,7 +735,6 @@
                     }
                 }
 
-                // Se não estiver em máquina nenhuma na data selecionada, vai para o pool
                 const pool = document.getElementById('pool');
                 pool.appendChild(card);
                 updateCardStyle(card, pool);
@@ -796,11 +799,22 @@
             }
         }
 
+        // RESET DA ESCALA DO DIA SELECIONADO
         function resetToPool() {
             const currentDateStr = getSelectedDateStr();
             if (confirm(`Deseja realmente limpar a escala do dia ${currentDateStr}?`)) {
                 if (window.saveDailySchedule) {
-                    window.saveDailySchedule(currentDateStr, {});
+                    window.saveDailySchedule(currentDateStr, {}).then(() => {
+                        renderCurrentView();
+                    });
+                }
+            }
+        }
+
+        function clearAllData() {
+            if (confirm("⚠️ Tem certeza que deseja APAGAR TODOS os colaboradores cadastrados e histórico de escalas?")) {
+                if (window.removeAllFirebaseData) {
+                    window.removeAllFirebaseData();
                 }
             }
         }
@@ -873,7 +887,6 @@
             target.appendChild(draggedElement);
             updateCardStyle(draggedElement, target);
             
-            // Salva a escala inteira da data corrente
             saveCurrentDailySchedule();
         }
 
@@ -902,34 +915,24 @@
             const currentDateStr = getSelectedDateStr();
             const scheduleObj = {};
 
-            // Mapeia onde está CADA colaborador no DOM no momento
             document.querySelectorAll('.person-card').forEach(card => {
                 const parent = card.parentElement;
-                if (parent.classList.contains('drop-slots')) {
-                    scheduleObj[card.id] = parent.id; // Guarda ID da máquina
-                } else if (parent.id === 'pool') {
-                    scheduleObj[card.id] = 'pool'; // Marca explicitamente como no pool
+                if (parent && parent.classList.contains('drop-slots')) {
+                    scheduleObj[card.id] = parent.id;
+                } else {
+                    scheduleObj[card.id] = 'pool';
                 }
             });
-
-            // Atualiza a variável local antes para garantir resposta imediata
-            if (!globalDatabaseData.escalas) globalDatabaseData.escalas = {};
-            globalDatabaseData.escalas[currentDateStr] = scheduleObj;
 
             if (window.saveDailySchedule) {
                 window.saveDailySchedule(currentDateStr, scheduleObj);
             }
         }
 
-        function clearAllData() {
-            if (confirm("Deseja realmente apagar TODOS os colaboradores cadastrados do sistema?")) {
-                if (window.savePeopleList) {
-                    window.savePeopleList([]);
-                }
-            }
-        }
-
-        initField();
+        // Inicializa o sistema ao carregar a página
+        window.addEventListener('DOMContentLoaded', () => {
+            initField();
+        });
     </script>
 </body>
 </html>
