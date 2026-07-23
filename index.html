@@ -190,6 +190,15 @@
             background-color: #219150;
         }
 
+        button.btn-copy {
+            background-color: #2980b9;
+            margin-top: 3px;
+        }
+
+        button.btn-copy:hover {
+            background-color: #1f618d;
+        }
+
         button.btn-reset {
             background-color: #e67e22;
             margin-top: 3px;
@@ -333,7 +342,7 @@
             border-radius: 12px;
             padding: 10px;
             display: grid;
-            grid-template-columns: repeat(6, 1fr); /* Sistema de 6 colunas para flexibilidade */
+            grid-template-columns: repeat(6, 1fr);
             gap: 8px;
             position: relative;
             box-shadow: inset 0 0 30px rgba(0,0,0,0.5);
@@ -349,17 +358,15 @@
             flex-direction: column;
             align-items: center;
             gap: 4px;
-            grid-column: span 2; /* Padrão: 2 colunas de largura (máquinas de 2 vagas) */
+            grid-column: span 2;
             min-height: 85px;
         }
 
-        /* Ajuste específico para máquinas de 1 vaga (Pequenas) */
         .machine-zone.cap-1 {
             grid-column: span 2;
             min-height: 55px;
         }
 
-        /* Ajuste específico para Supervisor */
         .machine-zone.supervisor {
             border: 2px solid #f1c40f;
             background: rgba(241, 196, 15, 0.15);
@@ -367,9 +374,8 @@
             min-height: 75px;
         }
 
-        /* Ajuste específico para Máquinas de 3 pessoas (Grandes/Largas) */
         .machine-zone.cap-3 {
-            grid-column: span 3; /* Ocupa metade do campo (3 das 6 colunas) */
+            grid-column: span 3;
             min-height: 105px;
         }
 
@@ -460,7 +466,7 @@
     </div>
 
     <div class="main-container">
-        <!-- Painel Lateral Esquerdo: Cadastro -->
+        <!-- Painel Lateral Esquerdo: Cadastro e Ações -->
         <div class="panel">
             <h2>Cadastrar Pessoa</h2>
             <div class="input-group">
@@ -479,8 +485,9 @@
 
             <hr style="border: 0; border-top: 1px solid #444; margin: 5px 0;">
 
+            <button class="btn-copy" onclick="copyPreviousDaySchedule()">📋 Copiar Escala do Dia Anterior</button>
             <button class="btn-reset" onclick="resetToPool()">🔄 Resetar Escala Deste Dia</button>
-            <button class="btn-clear" onclick="clearAllData()">🗑️ Apagar Colaboradores Cadastrados</button>
+            <button class="btn-clear" onclick="selectAndRemovePerson()">🗑️ Excluir um Colaborador...</button>
         </div>
 
         <!-- Coluna Central: Campo + Disponíveis -->
@@ -544,7 +551,6 @@
         let selectedOffGroups = [];
         let globalDatabaseData = { pessoas: [], escalas: {} };
 
-        // Define a data padrão para hoje (YYYY-MM-DD)
         function initDateInput() {
             const datePicker = document.getElementById('scheduleDatePicker');
             const today = new Date();
@@ -568,7 +574,7 @@
             if (!dateStr) return;
 
             const selectedDate = new Date(dateStr + 'T00:00:00');
-            const refDate = new Date(2026, 6, 22); // Data base de referência
+            const refDate = new Date(2026, 6, 22);
             const diffTime = selectedDate - refDate;
             const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
             
@@ -743,7 +749,6 @@
                 poolCards.push(card);
             });
 
-            // Insere os cartões do pool já ordenados
             const pool = document.getElementById('pool');
             poolCards.forEach(card => {
                 pool.appendChild(card);
@@ -809,6 +814,29 @@
             }
         }
 
+        // COPIAR ESCALA DO DIA ANTERIOR
+        function copyPreviousDaySchedule() {
+            const currentDateStr = getSelectedDateStr();
+            const currentDate = new Date(currentDateStr + 'T00:00:00');
+            currentDate.setDate(currentDate.getDate() - 1);
+            const prevDateStr = currentDate.toISOString().split('T')[0];
+
+            const prevSchedule = (globalDatabaseData.escalas && globalDatabaseData.escalas[prevDateStr]) || null;
+
+            if (!prevSchedule || Object.keys(prevSchedule).length === 0) {
+                alert(`Não foi encontrada nenhuma escala registrada no dia anterior (${prevDateStr}).`);
+                return;
+            }
+
+            if (confirm(`Deseja copiar a escala do dia anterior (${prevDateStr}) para o dia atual (${currentDateStr})?`)) {
+                if (window.saveDailySchedule) {
+                    window.saveDailySchedule(currentDateStr, prevSchedule).then(() => {
+                        alert('Escala do dia anterior copiada com sucesso!');
+                    });
+                }
+            }
+        }
+
         // RESET DA ESCALA DO DIA SELECIONADO
         function resetToPool() {
             const currentDateStr = getSelectedDateStr();
@@ -821,19 +849,45 @@
             }
         }
 
-        function clearAllData() {
-            if (confirm("⚠️ Tem certeza que deseja APAGAR TODOS os colaboradores cadastrados e histórico de escalas?")) {
-                if (window.removeAllFirebaseData) {
-                    window.removeAllFirebaseData();
-                }
+        // SELECIONAR E APAGAR UM COLABORADOR
+        function selectAndRemovePerson() {
+            let currentPeople = globalDatabaseData.pessoas || [];
+            if (currentPeople.length === 0) {
+                alert("Nenhum colaborador cadastrado para excluir.");
+                return;
             }
+
+            // Ordena alfabeticamente para exibir a lista organizada
+            currentPeople.sort((a, b) => a.rawName.localeCompare(b.rawName, 'pt-BR', { sensitivity: 'base' }));
+
+            let promptMsg = "Digite o NÚMERO do colaborador que deseja EXCLUIR do sistema:\n\n";
+            currentPeople.forEach((p, idx) => {
+                promptMsg += `${idx + 1} - ${p.rawName}\n`;
+            });
+
+            const choice = prompt(promptMsg);
+            if (!choice) return;
+
+            const index = parseInt(choice.trim()) - 1;
+            if (isNaN(index) || index < 0 || index >= currentPeople.length) {
+                alert("Opção inválida!");
+                return;
+            }
+
+            const personToDelete = currentPeople[index];
+            removePerson(personToDelete.id);
         }
 
         function removePerson(personId) {
             let currentPeople = globalDatabaseData.pessoas || [];
-            currentPeople = currentPeople.filter(p => p.id !== personId);
-            if (window.savePeopleList) {
-                window.savePeopleList(currentPeople);
+            const person = currentPeople.find(p => p.id === personId);
+            const nameStr = person ? person.rawName : 'este colaborador';
+
+            if (confirm(`Tem certeza que deseja excluir "${nameStr}" do cadastro?`)) {
+                currentPeople = currentPeople.filter(p => p.id !== personId);
+                if (window.savePeopleList) {
+                    window.savePeopleList(currentPeople);
+                }
             }
         }
 
@@ -898,7 +952,7 @@
             updateCardStyle(draggedElement, target);
             
             saveCurrentDailySchedule();
-            renderCurrentView(); // Re-renderiza para manter o pool ordenado após soltar
+            renderCurrentView();
         }
 
         function updateCardStyle(element, container) {
