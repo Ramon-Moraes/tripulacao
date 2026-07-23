@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Escala de Tripulação & Folgas - Acabamento</title>
+    <title>Escala de Tripulação & Folgas TM - Acabamento</title>
     
     <!-- SDKs do Firebase -->
     <script type="module">
@@ -51,9 +51,31 @@
             padding: 20px;
         }
 
-        h1, h2 {
+        /* Estrutura do Cabeçalho com a Logo no Título */
+        .header-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .header-logo {
+            max-height: 50px;
+            width: auto;
+            filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5));
+        }
+
+        h1 {
+            text-align: center;
+            margin: 0;
+            font-size: 26px;
+        }
+
+        h2 {
             text-align: center;
             margin-bottom: 10px;
+            font-size: 18px;
         }
 
         .date-banner {
@@ -79,10 +101,11 @@
 
         .main-container {
             display: grid;
-            grid-template-columns: 300px 1fr 300px;
+            grid-template-columns: 280px 1fr 280px;
             gap: 20px;
             max-width: 1400px;
             margin: 0 auto;
+            align-items: start;
         }
 
         .panel {
@@ -126,7 +149,7 @@
 
         button.btn-reset {
             background-color: #e67e22;
-            margin-top: 10px;
+            margin-top: 5px;
         }
 
         button.btn-reset:hover {
@@ -137,41 +160,69 @@
             background-color: #c0392b;
             margin-top: 5px;
             font-size: 12px;
-            padding: 6px;
+            padding: 8px;
         }
 
         button.btn-clear:hover {
             background-color: #a93226;
         }
 
+        /* Área de Disponíveis Otimizada para até 20+ Pessoas */
         .people-pool {
-            min-height: 150px;
+            min-height: 120px;
+            max-height: 260px;
+            overflow-y: auto;
             background: #333;
             padding: 10px;
             border-radius: 8px;
-            display: flex;
-            flex-direction: column;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
             gap: 8px;
+            border: 2px dashed #444;
+            align-content: start;
+        }
+
+        /* Estilização da barra de rolagem da pool */
+        .people-pool::-webkit-scrollbar {
+            width: 8px;
+        }
+        .people-pool::-webkit-scrollbar-track {
+            background: #222;
+            border-radius: 4px;
+        }
+        .people-pool::-webkit-scrollbar-thumb {
+            background: #555;
+            border-radius: 4px;
+        }
+        .people-pool::-webkit-scrollbar-thumb:hover {
+            background: #777;
         }
 
         .person-card {
             background: #3498db;
             color: white;
-            padding: 8px 12px;
-            border-radius: 20px;
+            padding: 6px 10px;
+            border-radius: 16px;
             cursor: grab;
             user-select: none;
             font-weight: bold;
-            font-size: 13px;
+            font-size: 12px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            transition: 0.3s;
+            box-shadow: 0 3px 5px rgba(0,0,0,0.3);
+            transition: 0.2s;
+            gap: 6px;
+            word-break: break-word;
         }
 
         .person-card:active {
             cursor: grabbing;
+        }
+
+        /* Cartões ajustados quando dentro das posições do campo */
+        .drop-slots .person-card {
+            width: 100%;
         }
 
         /* Estilos para cartões bloqueados */
@@ -217,17 +268,18 @@
 
         .card-actions {
             display: flex;
-            gap: 5px;
+            gap: 3px;
             align-items: center;
+            flex-shrink: 0;
         }
 
         .action-btn {
             background: transparent;
             color: rgba(255, 255, 255, 0.8);
             border: none;
-            font-size: 13px;
+            font-size: 11px;
             cursor: pointer;
-            padding: 2px 4px;
+            padding: 2px 3px;
             line-height: 1;
             border-radius: 3px;
         }
@@ -241,7 +293,7 @@
             display: flex;
             flex-direction: column;
             gap: 20px;
-            align-items: center;
+            width: 100%;
         }
 
         .soccer-field {
@@ -259,20 +311,6 @@
             position: relative;
             box-shadow: inset 0 0 50px rgba(0,0,0,0.5);
             width: 100%;
-        }
-
-        .field-logo-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 10px;
-        }
-
-        .field-logo {
-            max-width: 140px;
-            height: auto;
-            filter: drop-shadow(0px 6px 10px rgba(0, 0, 0, 0.6));
-            transition: transform 0.2s ease;
         }
 
         .machine-zone {
@@ -345,11 +383,25 @@
             flex-direction: column;
             gap: 5px;
         }
+
+        /* Container de Disponíveis abaixo do campo */
+        .pool-container-panel {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
 
-    <h1>⚽ Escalação de Equipamentos & Folgas</h1>
+    <!-- Cabeçalho Principal com Logo e Título -->
+    <div class="header-container">
+        <img src="https://raw.githubusercontent.com/Ramon-Moraes/tripulacao/main/logo.jpg" alt="Logo Acabamento" class="header-logo" onerror="this.style.display='none'">
+        <h1>⚽ Escalação de Equipamentos & Folgas</h1>
+    </div>
     
     <div class="date-banner" id="dateBanner">
         📅 Data Atual: <strong id="currentDateStr">--/--/----</strong> | Folga(s) de Hoje (6x2): <strong id="todayOffStr">Calculando...</strong>
@@ -357,7 +409,7 @@
     </div>
 
     <div class="main-container">
-        <!-- Painel de Cadastro e Disponíveis -->
+        <!-- Painel Lateral Esquerdo: Cadastro e Ações gerais -->
         <div class="panel">
             <h2>Cadastrar Pessoa</h2>
             <div class="input-group">
@@ -374,26 +426,29 @@
                 <button onclick="addPerson()">Adicionar Colaborador</button>
             </div>
 
-            <h2>Disponíveis / Em Turno</h2>
-            <p style="font-size: 12px; color: #aaa;">Arraste para uma máquina no campo:</p>
-            <div id="pool" class="people-pool" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+            <hr style="border: 0; border-top: 1px solid #444; margin: 10px 0;">
 
             <button class="btn-reset" onclick="resetToPool()">🔄 Resetar Escala do Campo</button>
             <button class="btn-clear" onclick="clearAllData()">🗑️ Apagar Todos os Cadastros</button>
         </div>
 
-        <!-- Coluna Central: Campo de Futebol -->
+        <!-- Coluna Central: Campo de Futebol + Disponíveis Abaixo -->
         <div class="center-column">
+            <!-- Campo de Futebol -->
             <div class="soccer-field"></div>
-            <div class="field-logo-container">
-                 <img src="https://github.com/Ramon-Moraes/tripulacao/edit/main/logo.jpg" alt="Logo Acabamento" class="field-logo">
+
+            <!-- Seção de Pessoas Disponíveis (Abaixo do Campo) -->
+            <div class="pool-container-panel">
+                <h2>Disponíveis / Em Turno</h2>
+                <p style="font-size: 12px; color: #aaa; text-align: center;">Arraste um colaborador desta área para as posições do campo acima:</p>
+                <div id="pool" class="people-pool" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
             </div>
         </div>
 
-        <!-- Painel Lateral de Grupos de Folga e Ausências -->
+        <!-- Painel Lateral Direito: Grupos de Folga e Ausências -->
         <div class="panel">
             <h2>Integrantes por Grupo</h2>
-            <p style="font-size: 11px; color: #aaa; margin-top:-10px;">Visualização fixa por status:</p>
+            <p style="font-size: 11px; color: #aaa; margin-top:-10px; text-align: center;">Visualização fixa por status:</p>
             <div class="off-zones">
                 <div class="off-group" id="group-folga1">
                     <h4>Folga 1 <span id="tag-folga1"></span></h4>
@@ -517,7 +572,6 @@
 
             let displayName = rawName;
 
-            // Tratamento das restrições e desabilitações
             if (isVacation) {
                 personCard.classList.add('blocked-vacation');
                 personCard.draggable = false;
@@ -530,7 +584,7 @@
                 personCard.classList.add('blocked-off');
                 personCard.draggable = false;
                 const offNum = defaultOff.replace('folga', 'F');
-                displayName = `[${offNum}] ${rawName} 🚫 [FOLGA HOJE]`;
+                displayName = `[${offNum}] ${rawName} 🚫 [FOLGA]`;
             } else {
                 personCard.draggable = true;
                 personCard.ondragstart = drag;
@@ -641,7 +695,6 @@
 
             card.replaceWith(newCard);
             
-            // Se foi colocado em férias/licença/folga e estava no campo, manda de volta para o Pool
             if ((targetOffKey === 'ferias' || targetOffKey === 'licenca' || todayOffGroups.includes(targetOffKey)) && parent.classList.contains('drop-slots')) {
                 document.getElementById('pool').appendChild(newCard);
                 updateCardStyle(newCard, document.getElementById('pool'));
