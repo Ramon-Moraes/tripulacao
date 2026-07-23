@@ -60,7 +60,7 @@
         body {
             background-color: #1a1a1a;
             color: #fff;
-            padding: 15px;
+            padding: 10px;
         }
 
         /* TELA DE LOGIN COM LOGO GRANDE */
@@ -144,44 +144,44 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             background: #2a2a2a;
-            padding: 10px 20px;
-            border-radius: 10px;
+            padding: 8px 15px;
+            border-radius: 8px;
         }
 
         .header-left {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
         }
 
         .header-logo {
-            max-height: 45px;
+            max-height: 40px;
             width: auto;
             filter: drop-shadow(0px 2px 4px rgba(0,0,0,0.5));
         }
 
         h1 {
-            font-size: 20px;
+            font-size: 18px;
             margin: 0;
         }
 
         .user-info-badge {
             display: flex;
             align-items: center;
-            gap: 12px;
-            font-size: 13px;
+            gap: 10px;
+            font-size: 12px;
             background: #181818;
-            padding: 6px 12px;
-            border-radius: 20px;
+            padding: 4px 10px;
+            border-radius: 15px;
             border: 1px solid #444;
         }
 
         .btn-logout {
             background: #e74c3c;
             color: white;
-            padding: 4px 10px;
+            padding: 3px 8px;
             font-size: 11px;
             border-radius: 4px;
             cursor: pointer;
@@ -195,79 +195,85 @@
         h2 {
             text-align: center;
             margin-bottom: 8px;
-            font-size: 16px;
+            font-size: 15px;
         }
 
-        /* Banner de Seleção de Data */
-        .date-banner {
-            text-align: center;
-            background: #2a2a2a;
-            padding: 8px 15px;
-            border-radius: 10px;
-            max-width: 700px;
-            margin: 0 auto 15px auto;
-            border: 2px solid #3498db;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-        }
-
-        .date-controls {
+        /* BANNER COMPACTO DE SELEÇÃO DE DATA */
+        .date-banner-compact {
+            background: #222;
+            padding: 6px 14px;
+            border-radius: 8px;
+            max-width: 1550px;
+            margin: 0 auto 10px auto;
+            border: 1px solid #3498db;
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: space-between;
             gap: 10px;
             flex-wrap: wrap;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+        }
+
+        .date-controls-compact {
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .date-picker-input {
             background: #111;
             color: #f1c40f;
             font-weight: bold;
-            font-size: 15px;
-            padding: 5px 10px;
+            font-size: 13px;
+            padding: 3px 8px;
             border: 1px solid #555;
-            border-radius: 6px;
+            border-radius: 4px;
             cursor: pointer;
         }
 
         .date-nav-btn {
             background: #3498db;
             color: white;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
             border: none;
+            cursor: pointer;
         }
 
         .date-nav-btn:hover {
             background: #2980b9;
         }
 
+        .off-info-inline {
+            font-size: 12px;
+            color: #ccc;
+            white-space: nowrap;
+        }
+
         .status-sync {
-            font-size: 10px;
+            font-size: 11px;
             color: #2ecc71;
+            white-space: nowrap;
         }
 
         .main-container {
             display: grid;
             grid-template-columns: 280px 1fr 260px;
-            gap: 15px;
+            gap: 12px;
             max-width: 1550px;
             margin: 0 auto;
             align-items: start;
         }
 
-        /* CORREÇÃO DO PAINEL LATERAL ESQUERDO */
+        /* PAINEL LATERAL ESQUERDO */
         .panel {
             background-color: #2a2a2a;
-            padding: 15px;
+            padding: 12px;
             border-radius: 10px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
             overflow: hidden;
             width: 100%;
         }
@@ -292,7 +298,7 @@
         }
 
         input, select, button {
-            padding: 9px;
+            padding: 8px;
             border-radius: 6px;
             border: none;
             outline: none;
@@ -598,22 +604,22 @@
         </div>
     </div>
     
-    <!-- Banner com Seletor de Data -->
-    <div class="date-banner">
-        <div class="date-controls">
-            <button class="date-nav-btn" onclick="changeDate(-1)">◀ Dia Anterior</button>
-            <label for="scheduleDatePicker" style="font-size: 13px; font-weight: bold;">Montar Escala para:</label>
+    <!-- Banner Compacto de Data -->
+    <div class="date-banner-compact">
+        <div class="date-controls-compact">
+            <span style="font-size: 12px; font-weight: bold;">Escala:</span>
+            <button class="date-nav-btn" onclick="changeDate(-1)">◀</button>
             <input type="date" id="scheduleDatePicker" class="date-picker-input" onchange="onDateChange()">
-            <button class="date-nav-btn" onclick="changeDate(1)">Próximo Dia ▶</button>
+            <button class="date-nav-btn" onclick="changeDate(1)">▶</button>
         </div>
-        <div style="font-size: 12px;">
-            Folga(s) Prevista(s) para a Data: <strong id="todayOffStr" style="color:#f1c40f;">Calculando...</strong>
+        <div class="off-info-inline">
+            Folga Prevista: <strong id="todayOffStr" style="color:#f1c40f;">Calculando...</strong>
         </div>
-        <div class="status-sync" id="syncStatus">🌐 Sincronização Online Ativa</div>
+        <div class="status-sync" id="syncStatus">🟢 Online</div>
     </div>
 
     <div class="main-container">
-        <!-- Painel Lateral Esquerdo Organizado Sem Sobreposição -->
+        <!-- Painel Lateral Esquerdo Organizado -->
         <div class="panel" id="adminPanel">
             <h2>Cadastrar Pessoa</h2>
             <div id="readOnlyMsg" class="read-only-notice">👀 Modo Visualização (Apenas Operador)</div>
