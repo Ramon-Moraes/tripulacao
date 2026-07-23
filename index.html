@@ -4,6 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Escala de Tripulação & Folgas - Acabamento</title>
+    
+    <!-- SDKs do Firebase (Módulos da Versão 9/10) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        // ⚠️ ATENÇÃO: Substitua os dados abaixo pelas credenciais do SEU projeto Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyDVk5pV6WIOIZCAg_98Zzz1LD95zcDMczw",
+            authDomain: "banco-tripulacao.firebaseapp.com",
+            databaseURL: "https://banco-tripulacao-default-rtdb.firebaseio.com",
+            projectId: "banco-tripulacao",
+            storageBucket: "banco-tripulacao.firebasestorage.app",
+            messagingSenderId: "546375492746",
+            appId: "1:546375492746:web:e94b50f0caf2842547f973"
+        };
+
+        // Inicializa o Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const dbRef = ref(db, 'escala_acabamento');
+
+        // Disponibiliza as funções do Firebase no escopo global para o script usar
+        window.firebaseSetData = function(data) {
+            set(dbRef, data).catch(err => console.error("Erro ao salvar online:", err));
+        };
+
+        window.firebaseListenData = function(callback) {
+            onValue(dbRef, (snapshot) => {
+                const data = snapshot.val();
+                callback(data);
+            });
+        };
+    </script>
+
     <style>
         * {
             box-sizing: border-box;
@@ -38,6 +73,12 @@
             color: #f1c40f;
         }
 
+        .status-sync {
+            font-size: 11px;
+            color: #2ecc71;
+            margin-top: 4px;
+        }
+
         .main-container {
             display: grid;
             grid-template-columns: 300px 1fr 300px;
@@ -46,7 +87,6 @@
             margin: 0 auto;
         }
 
-        /* Painel lateral */
         .panel {
             background-color: #2a2a2a;
             padding: 15px;
@@ -116,7 +156,6 @@
             gap: 8px;
         }
 
-        /* Cartão da Pessoa (Escalável) */
         .person-card {
             background: #3498db;
             color: white;
@@ -144,7 +183,6 @@
             border: 2px solid #e74c3c;
         }
 
-        /* Etiqueta Fixa da Caixa de Folga */
         .off-fixed-badge {
             background: rgba(255, 255, 255, 0.1);
             color: #ddd;
@@ -186,7 +224,6 @@
             background: rgba(255, 255, 255, 0.2);
         }
 
-        /* Coluna Central */
         .center-column {
             display: flex;
             flex-direction: column;
@@ -194,7 +231,6 @@
             align-items: center;
         }
 
-        /* Campo de Futebol */
         .soccer-field {
             background: #27ae60;
             background-image: 
@@ -212,7 +248,6 @@
             width: 100%;
         }
 
-        /* Logo */
         .field-logo-container {
             display: flex;
             justify-content: center;
@@ -231,7 +266,6 @@
             transform: scale(1.05);
         }
 
-        /* Máquinas */
         .machine-zone {
             background: rgba(0, 0, 0, 0.4);
             border: 2px dashed rgba(255, 255, 255, 0.6);
@@ -265,7 +299,6 @@
             height: 100%;
         }
 
-        /* Seção de Folgas */
         .off-zones {
             display: flex;
             flex-direction: column;
@@ -311,6 +344,7 @@
     
     <div class="date-banner" id="dateBanner">
         📅 Data Atual: <strong id="currentDateStr">--/--/----</strong> | Folga(s) de Hoje (6x2): <strong id="todayOffStr">Calculando...</strong>
+        <div class="status-sync" id="syncStatus">🌐 Sincronização Online Ativa</div>
     </div>
 
     <div class="main-container">
@@ -331,20 +365,15 @@
 
             <h2>Disponíveis / Em Turno</h2>
             <p style="font-size: 12px; color: #aaa;">Arraste para uma máquina no campo:</p>
-            <div id="pool" class="people-pool" ondrop="drop(event)" ondragover="allowDrop(event)">
-                <!-- Cartões de pessoas entram aqui -->
-            </div>
+            <div id="pool" class="people-pool" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
 
             <button class="btn-reset" onclick="resetToPool()">🔄 Resetar Escala do Campo</button>
             <button class="btn-clear" onclick="clearAllData()">🗑️ Apagar Todos os Cadastros</button>
         </div>
 
-        <!-- Coluna Central: Campo de Futebol + Logo Abaixo -->
+        <!-- Coluna Central: Campo de Futebol -->
         <div class="center-column">
-            <div class="soccer-field">
-                <!-- As máquinas serão geradas dinamicamente via JS -->
-            </div>
-
+            <div class="soccer-field"></div>
             <div class="field-logo-container">
                 <img src="data:image/jpeg;base64,SEU_CODIGO_BASE64_AQUI" alt="Logo Acabamento" class="field-logo">
             </div>
@@ -391,14 +420,11 @@
         let idCounter = 0;
         let todayOffGroups = [];
 
-        // --- CÁLCULO DA ESCALA 6x2 ---
         function calculateTodayOffs() {
             const today = new Date();
             const currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
             
-            // Referência: 22/07/2026 é o último dia de folga da Folga 2
             const refDate = new Date(2026, 6, 22);
-            
             const diffTime = currentDate - refDate;
             const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
             
@@ -456,10 +482,10 @@
                 field.appendChild(zone);
             });
 
-            loadSavedData();
+            // Inicia o ouvinte do banco de dados em nuvem
+            setTimeout(loadSavedData, 500); 
         }
 
-        // Criar o Cartão Arrastável (vai para o Campo ou Disponíveis)
         function createPersonCard(id, rawName, defaultOff) {
             const personCard = document.createElement('div');
             personCard.className = 'person-card';
@@ -495,9 +521,7 @@
             return personCard;
         }
 
-        // Criar a etiqueta fixa da caixa lateral de folgas
         function renderOffSideBadges() {
-            // Limpa as caixas laterais
             ['folga1', 'folga2', 'folga3', 'folga4'].forEach(f => {
                 document.getElementById(f).innerHTML = '';
             });
@@ -533,8 +557,6 @@
             const targetOffGroup = offSelect.value;
             
             const personCard = createPersonCard(personId, rawName, targetOffGroup);
-
-            // O cartão arrastável fica nos Disponíveis
             const poolContainer = document.getElementById('pool');
             poolContainer.appendChild(personCard);
             updateCardStyle(personCard, poolContainer);
@@ -671,6 +693,7 @@
             }
         }
 
+        // GRAVAÇÃO NO BANCO DE DADOS EM NUVEM
         function saveData() {
             const allCards = document.querySelectorAll('.person-card');
             const dataToSave = [];
@@ -684,34 +707,38 @@
                 });
             });
 
-            localStorage.setItem('escala_acabamento_data', JSON.stringify(dataToSave));
+            if (window.firebaseSetData) {
+                window.firebaseSetData(dataToSave);
+            }
         }
 
+        // LEITURA EM TEMPO REAL DO BANCO DE DADOS EM NUVEM
         function loadSavedData() {
-            const saved = localStorage.getItem('escala_acabamento_data');
-            if (!saved) return;
+            if (window.firebaseListenData) {
+                window.firebaseListenData((parsedData) => {
+                    // Limpa elementos existentes para renderizar os da nuvem
+                    document.querySelectorAll('.person-card').forEach(card => card.remove());
 
-            try {
-                const parsedData = JSON.parse(saved);
-                parsedData.forEach(item => {
-                    const container = document.getElementById(item.containerId) || document.getElementById('pool');
-                    if (container) {
-                        const card = createPersonCard(item.id, item.rawName, item.defaultOff);
-                        container.appendChild(card);
-                        updateCardStyle(card, container);
+                    if (parsedData && Array.isArray(parsedData)) {
+                        parsedData.forEach(item => {
+                            const container = document.getElementById(item.containerId) || document.getElementById('pool');
+                            if (container) {
+                                const card = createPersonCard(item.id, item.rawName, item.defaultOff);
+                                container.appendChild(card);
+                                updateCardStyle(card, container);
+                            }
+                        });
                     }
+                    renderOffSideBadges();
                 });
-                renderOffSideBadges();
-            } catch (e) {
-                console.error("Erro ao carregar dados salvos:", e);
             }
         }
 
         function clearAllData() {
-            if (confirm("Deseja realmente apagar TODOS os colaboradores cadastrados?")) {
-                localStorage.removeItem('escala_acabamento_data');
-                document.querySelectorAll('.person-card').forEach(card => card.remove());
-                renderOffSideBadges();
+            if (confirm("Deseja realmente apagar TODOS os colaboradores cadastrados da nuvem?")) {
+                if (window.firebaseSetData) {
+                    window.firebaseSetData([]);
+                }
             }
         }
 
