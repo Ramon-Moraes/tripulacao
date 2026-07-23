@@ -5,28 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Escala de Tripulação & Folgas - Acabamento</title>
     
-    <!-- SDKs do Firebase (Módulos da Versão 9/10) -->
+    <!-- SDKs do Firebase -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // ⚠️ ATENÇÃO: Substitua os dados abaixo pelas credenciais do SEU projeto Firebase
+        // ⚠️ ATENÇÃO: Substitua pelos dados do seu projeto no Firebase
         const firebaseConfig = {
-            apiKey: "AIzaSyDVk5pV6WIOIZCAg_98Zzz1LD95zcDMczw",
-            authDomain: "banco-tripulacao.firebaseapp.com",
-            databaseURL: "https://banco-tripulacao-default-rtdb.firebaseio.com",
-            projectId: "banco-tripulacao",
-            storageBucket: "banco-tripulacao.firebasestorage.app",
-            messagingSenderId: "546375492746",
-            appId: "1:546375492746:web:e94b50f0caf2842547f973"
+            apiKey: "SEU_API_KEY",
+            authDomain: "SEU_PROJETO.firebaseapp.com",
+            databaseURL: "https://SEU_PROJETO-default-rtdb.firebaseio.com",
+            projectId: "SEU_PROJETO",
+            storageBucket: "SEU_PROJETO.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef"
         };
 
-        // Inicializa o Firebase
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
         const dbRef = ref(db, 'escala_acabamento');
 
-        // Disponibiliza as funções do Firebase no escopo global para o script usar
         window.firebaseSetData = function(data) {
             set(dbRef, data).catch(err => console.error("Erro ao salvar online:", err));
         };
@@ -164,7 +162,7 @@
             cursor: grab;
             user-select: none;
             font-weight: bold;
-            font-size: 14px;
+            font-size: 13px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -176,11 +174,26 @@
             cursor: grabbing;
         }
 
+        /* Estilos para cartões bloqueados */
         .person-card.blocked-off {
             background-color: #c0392b !important;
             cursor: not-allowed !important;
-            opacity: 0.8;
+            opacity: 0.85;
             border: 2px solid #e74c3c;
+        }
+
+        .person-card.blocked-vacation {
+            background-color: #d35400 !important;
+            cursor: not-allowed !important;
+            opacity: 0.85;
+            border: 2px solid #e67e22;
+        }
+
+        .person-card.blocked-leave {
+            background-color: #8e44ad !important;
+            cursor: not-allowed !important;
+            opacity: 0.85;
+            border: 2px solid #9b59b6;
         }
 
         .off-fixed-badge {
@@ -260,10 +273,6 @@
             height: auto;
             filter: drop-shadow(0px 6px 10px rgba(0, 0, 0, 0.6));
             transition: transform 0.2s ease;
-        }
-
-        .field-logo:hover {
-            transform: scale(1.05);
         }
 
         .machine-zone {
@@ -353,12 +362,14 @@
             <h2>Cadastrar Pessoa</h2>
             <div class="input-group">
                 <input type="text" id="personName" placeholder="Nome do Colaborador">
-                <label for="offSelect">Grupo de Folga pertencente:</label>
-                <select id="offSelect">
-                    <option value="folga1">Folga 1</option>
-                    <option value="folga2">Folga 2</option>
-                    <option value="folga3">Folga 3</option>
-                    <option value="folga4">Folga 4</option>
+                <label for="statusSelect">Situação / Folga:</label>
+                <select id="statusSelect">
+                    <option value="folga1">Folga 1 (Escala 6x2)</option>
+                    <option value="folga2">Folga 2 (Escala 6x2)</option>
+                    <option value="folga3">Folga 3 (Escala 6x2)</option>
+                    <option value="folga4">Folga 4 (Escala 6x2)</option>
+                    <option value="ferias">🏖️ Em Férias</option>
+                    <option value="licenca">🏥 Em Licença / Atestado</option>
                 </select>
                 <button onclick="addPerson()">Adicionar Colaborador</button>
             </div>
@@ -375,14 +386,14 @@
         <div class="center-column">
             <div class="soccer-field"></div>
             <div class="field-logo-container">
-             <img src="https://github.com/Ramon-Moraes/tripulacao/blob/main/logo.jpg" alt="Logo Acabamento" class="field-logo">    
+                 <img src="https://github.com/Ramon-Moraes/tripulacao/edit/main/logo.jpg" alt="Logo Acabamento" class="field-logo">
             </div>
         </div>
 
-        <!-- Painel Lateral de Grupos de Folga -->
+        <!-- Painel Lateral de Grupos de Folga e Ausências -->
         <div class="panel">
-            <h2>Integrantes por Folga</h2>
-            <p style="font-size: 11px; color: #aaa; margin-top:-10px;">Visualização fixa dos membros de cada grupo:</p>
+            <h2>Integrantes por Grupo</h2>
+            <p style="font-size: 11px; color: #aaa; margin-top:-10px;">Visualização fixa por status:</p>
             <div class="off-zones">
                 <div class="off-group" id="group-folga1">
                     <h4>Folga 1 <span id="tag-folga1"></span></h4>
@@ -399,6 +410,14 @@
                 <div class="off-group" id="group-folga4">
                     <h4>Folga 4 <span id="tag-folga4"></span></h4>
                     <div id="folga4" class="off-slots"></div>
+                </div>
+                <div class="off-group" style="border-left-color: #e67e22;">
+                    <h4 style="color: #e67e22;">🏖️ Em Férias</h4>
+                    <div id="ferias" class="off-slots"></div>
+                </div>
+                <div class="off-group" style="border-left-color: #9b59b6;">
+                    <h4 style="color: #9b59b6;">🏥 Em Licença</h4>
+                    <div id="licenca" class="off-slots"></div>
                 </div>
             </div>
         </div>
@@ -482,7 +501,6 @@
                 field.appendChild(zone);
             });
 
-            // Inicia o ouvinte do banco de dados em nuvem
             setTimeout(loadSavedData, 500); 
         }
 
@@ -494,26 +512,36 @@
             personCard.dataset.defaultOff = defaultOff;
 
             const isOffToday = defaultOff && todayOffGroups.includes(defaultOff);
+            const isVacation = defaultOff === 'ferias';
+            const isLeave = defaultOff === 'licenca';
 
-            if (isOffToday) {
+            let displayName = rawName;
+
+            // Tratamento das restrições e desabilitações
+            if (isVacation) {
+                personCard.classList.add('blocked-vacation');
+                personCard.draggable = false;
+                displayName = `[FÉRIAS] ${rawName} 🏖️`;
+            } else if (isLeave) {
+                personCard.classList.add('blocked-leave');
+                personCard.draggable = false;
+                displayName = `[LICENÇA] ${rawName} 🏥`;
+            } else if (isOffToday) {
                 personCard.classList.add('blocked-off');
                 personCard.draggable = false;
+                const offNum = defaultOff.replace('folga', 'F');
+                displayName = `[${offNum}] ${rawName} 🚫 [FOLGA HOJE]`;
             } else {
                 personCard.draggable = true;
                 personCard.ondragstart = drag;
-            }
-
-            const offNum = defaultOff.replace('folga', 'F');
-            let displayName = `[${offNum}] ${rawName}`;
-
-            if (isOffToday) {
-                displayName += ` 🚫 [FOLGA HOJE]`;
+                const offNum = defaultOff.replace('folga', 'F');
+                displayName = `[${offNum}] ${rawName}`;
             }
 
             personCard.innerHTML = `
                 <span class="card-name">${displayName}</span>
                 <div class="card-actions">
-                    <button class="action-btn" onclick="changePersonOff('${id}')" title="Alterar Grupo de Folga">✏️</button>
+                    <button class="action-btn" onclick="changePersonOff('${id}')" title="Alterar Status / Folga">✏️</button>
                     <button class="action-btn" onclick="removePerson('${id}')" title="Remover">✕</button>
                 </div>
             `;
@@ -522,8 +550,9 @@
         }
 
         function renderOffSideBadges() {
-            ['folga1', 'folga2', 'folga3', 'folga4'].forEach(f => {
-                document.getElementById(f).innerHTML = '';
+            ['folga1', 'folga2', 'folga3', 'folga4', 'ferias', 'licenca'].forEach(f => {
+                const el = document.getElementById(f);
+                if (el) el.innerHTML = '';
             });
 
             const allCards = document.querySelectorAll('.person-card');
@@ -536,7 +565,13 @@
                 if (container) {
                     const badge = document.createElement('div');
                     badge.className = `off-fixed-badge ${isOffToday ? 'is-off-today' : ''}`;
-                    badge.innerText = isOffToday ? `${rawName} (Folgando)` : rawName;
+                    
+                    let badgeText = rawName;
+                    if (defaultOff === 'ferias') badgeText += ' (Férias)';
+                    else if (defaultOff === 'licenca') badgeText += ' (Licença)';
+                    else if (isOffToday) badgeText += ' (Folgando)';
+
+                    badge.innerText = badgeText;
                     container.appendChild(badge);
                 }
             });
@@ -544,7 +579,7 @@
 
         function addPerson() {
             const nameInput = document.getElementById('personName');
-            const offSelect = document.getElementById('offSelect');
+            const statusSelect = document.getElementById('statusSelect');
             const rawName = nameInput.value.trim();
 
             if (!rawName) {
@@ -554,9 +589,9 @@
 
             idCounter++;
             const personId = `person-${Date.now()}-${idCounter}`;
-            const targetOffGroup = offSelect.value;
+            const targetStatus = statusSelect.value;
             
-            const personCard = createPersonCard(personId, rawName, targetOffGroup);
+            const personCard = createPersonCard(personId, rawName, targetStatus);
             const poolContainer = document.getElementById('pool');
             poolContainer.appendChild(personCard);
             updateCardStyle(personCard, poolContainer);
@@ -573,25 +608,46 @@
             const rawName = card.dataset.rawName;
             const currentOff = card.dataset.defaultOff;
 
-            const newOff = prompt(
-                `Alterar grupo de folga de "${rawName}":\n\n` +
-                `Digite o número do grupo (1, 2, 3 ou 4):`,
-                currentOff.replace('folga', '')
+            const option = prompt(
+                `Alterar situação de "${rawName}":\n\n` +
+                `1 - Folga 1\n` +
+                `2 - Folga 2\n` +
+                `3 - Folga 3\n` +
+                `4 - Folga 4\n` +
+                `F - Férias\n` +
+                `L - Licença / Atestado\n\n` +
+                `Digite a opção desejada:`,
+                currentOff.startsWith('folga') ? currentOff.replace('folga', '') : currentOff.toUpperCase()[0]
             );
 
-            if (newOff === null) return;
+            if (option === null) return;
 
-            if (!['1', '2', '3', '4'].includes(newOff.trim())) {
-                alert('Número inválido! Escolha 1, 2, 3 ou 4.');
+            const opt = option.trim().toUpperCase();
+            let targetOffKey = '';
+
+            if (['1', '2', '3', '4'].includes(opt)) {
+                targetOffKey = `folga${opt}`;
+            } else if (opt === 'F') {
+                targetOffKey = 'ferias';
+            } else if (opt === 'L') {
+                targetOffKey = 'licenca';
+            } else {
+                alert('Opção inválida!');
                 return;
             }
 
-            const targetOffKey = `folga${newOff.trim()}`;
             const parent = card.parentElement;
             const newCard = createPersonCard(personId, rawName, targetOffKey);
 
             card.replaceWith(newCard);
-            updateCardStyle(newCard, parent);
+            
+            // Se foi colocado em férias/licença/folga e estava no campo, manda de volta para o Pool
+            if ((targetOffKey === 'ferias' || targetOffKey === 'licenca' || todayOffGroups.includes(targetOffKey)) && parent.classList.contains('drop-slots')) {
+                document.getElementById('pool').appendChild(newCard);
+                updateCardStyle(newCard, document.getElementById('pool'));
+            } else {
+                updateCardStyle(newCard, parent);
+            }
 
             renderOffSideBadges();
             saveData();
@@ -624,9 +680,9 @@
 
         function drag(ev) {
             const card = ev.target;
-            if (card.classList.contains('blocked-off')) {
+            if (card.classList.contains('blocked-off') || card.classList.contains('blocked-vacation') || card.classList.contains('blocked-leave')) {
                 ev.preventDefault();
-                alert('Esta pessoa está em dia de folga hoje e não pode ser escalada!');
+                alert('Colaborador indisponível para escala!');
                 return;
             }
             ev.dataTransfer.setData("text", card.id);
@@ -638,8 +694,10 @@
             const draggedElement = document.getElementById(data);
             if (!draggedElement) return;
 
-            if (draggedElement.classList.contains('blocked-off')) {
-                alert('Pessoa em dia de folga hoje! Ação bloqueada.');
+            if (draggedElement.classList.contains('blocked-off') || 
+                draggedElement.classList.contains('blocked-vacation') || 
+                draggedElement.classList.contains('blocked-leave')) {
+                alert('Pessoa em férias, licença ou folga hoje! Ação bloqueada.');
                 return;
             }
 
@@ -685,6 +743,14 @@
                 element.style.backgroundColor = '#c0392b';
                 return;
             }
+            if (element.classList.contains('blocked-vacation')) {
+                element.style.backgroundColor = '#d35400';
+                return;
+            }
+            if (element.classList.contains('blocked-leave')) {
+                element.style.backgroundColor = '#8e44ad';
+                return;
+            }
 
             if (container.classList.contains('drop-slots')) {
                 element.style.backgroundColor = container.id === 'SUPERVISOR' ? '#f39c12' : '#27ae60';
@@ -693,7 +759,6 @@
             }
         }
 
-        // GRAVAÇÃO NO BANCO DE DADOS EM NUVEM
         function saveData() {
             const allCards = document.querySelectorAll('.person-card');
             const dataToSave = [];
@@ -712,11 +777,9 @@
             }
         }
 
-        // LEITURA EM TEMPO REAL DO BANCO DE DADOS EM NUVEM
         function loadSavedData() {
             if (window.firebaseListenData) {
                 window.firebaseListenData((parsedData) => {
-                    // Limpa elementos existentes para renderizar os da nuvem
                     document.querySelectorAll('.person-card').forEach(card => card.remove());
 
                     if (parsedData && Array.isArray(parsedData)) {
