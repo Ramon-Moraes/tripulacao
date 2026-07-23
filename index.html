@@ -952,17 +952,33 @@
             const currentDateStr = getSelectedDateStr();
             const dailySchedule = (globalDatabaseData.escalas && globalDatabaseData.escalas[currentDateStr]) || {};
 
-            people.sort((a, b) => a.rawName.localeCompare(b.rawName, 'pt-BR', { sensitivity: 'base' }));
-
-            const poolCards = [];
+            // Separa os colaboradores ativos dos indisponíveis (Folga/Férias/Licença)
+            let activePeople = [];
+            let unavailablePeople = [];
 
             people.forEach(person => {
-                const card = createPersonCard(person.id, person.rawName, person.defaultOff);
-                const isBlocked = person.defaultOff === 'ferias' || person.defaultOff === 'licenca' || selectedOffGroups.includes(person.defaultOff);
+                const isBlocked = person.defaultOff === 'ferias' || 
+                                  person.defaultOff === 'licenca' || 
+                                  selectedOffGroups.includes(person.defaultOff);
+                if (isBlocked) {
+                    unavailablePeople.push(person);
+                } else {
+                    activePeople.push(person);
+                }
+            });
 
+            // Ordena os ativos em ordem alfabética de A-Z
+            activePeople.sort((a, b) => a.rawName.localeCompare(b.rawName, 'pt-BR', { sensitivity: 'base' }));
+
+            const poolCards = [];
+            const unavailableCards = [];
+
+            // 1. Processa os colaboradores ativos
+            activePeople.forEach(person => {
+                const card = createPersonCard(person.id, person.rawName, person.defaultOff);
                 const assignedMachineId = dailySchedule[person.id];
 
-                if (assignedMachineId && assignedMachineId !== 'pool' && !isBlocked) {
+                if (assignedMachineId && assignedMachineId !== 'pool') {
                     const machineContainer = document.getElementById(assignedMachineId);
                     if (machineContainer) {
                         machineContainer.appendChild(card);
@@ -970,12 +986,25 @@
                         return;
                     }
                 }
-
                 poolCards.push(card);
             });
 
+            // 2. Processa os indisponíveis (sempre para a lista do pool de indisponíveis ao final)
+            unavailablePeople.forEach(person => {
+                const card = createPersonCard(person.id, person.rawName, person.defaultOff);
+                unavailableCards.push(card);
+            });
+
             const pool = document.getElementById('pool');
+            
+            // Adiciona primeiro os ativos na lista
             poolCards.forEach(card => {
+                pool.appendChild(card);
+                updateCardStyle(card, pool);
+            });
+
+            // Adiciona no final os indisponíveis (férias, licença e folga)
+            unavailableCards.forEach(card => {
                 pool.appendChild(card);
                 updateCardStyle(card, pool);
             });
