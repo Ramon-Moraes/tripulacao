@@ -10,7 +10,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // ⚠️ ATENÇÃO: Substitua pelos dados do seu projeto no Firebase
+        // ⚠️ ATENÇÃO: Configuração do seu projeto no Firebase
         const firebaseConfig = {
             apiKey: "AIzaSyDVk5pV6WIOIZCAg_98Zzz1LD95zcDMczw",
             authDomain: "banco-tripulacao.firebaseapp.com",
@@ -24,26 +24,25 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // Salva colaboradores cadastrados
-        window.savePeopleList = function(people) {
-            set(ref(db, 'escala_acabamento/pessoas'), people).catch(err => console.error("Erro ao salvar pessoas:", err));
+        let currentUnsubscribe = null;
+
+        // Salva colaboradores cadastrados no nó do turno ativo
+        window.savePeopleList = function(shift, people) {
+            set(ref(db, `escala_acabamento_${shift}/pessoas`), people).catch(err => console.error("Erro ao salvar pessoas:", err));
         };
 
-        // Salva a escala de uma data específica (Formato YYYY-MM-DD)
-        window.saveDailySchedule = function(dateStr, scheduleData) {
-            return set(ref(db, `escala_acabamento/escalas/${dateStr}`), scheduleData)
+        // Salva a escala de uma data específica no nó do turno ativo
+        window.saveDailySchedule = function(shift, dateStr, scheduleData) {
+            return set(ref(db, `escala_acabamento_${shift}/escalas/${dateStr}`), scheduleData)
                 .catch(err => console.error("Erro ao salvar escala:", err));
         };
 
-        // Limpa todos os dados no Firebase
-        window.removeAllFirebaseData = function() {
-            return remove(ref(db, 'escala_acabamento'))
-                .catch(err => console.error("Erro ao apagar dados:", err));
-        };
-
-        // Escuta atualizações no banco de dados
-        window.listenFirebase = function(callback) {
-            onValue(ref(db, 'escala_acabamento'), (snapshot) => {
+        // Escuta atualizações no banco para o turno conectado
+        window.listenFirebase = function(shift, callback) {
+            if (currentUnsubscribe) currentUnsubscribe();
+            
+            const dbRef = ref(db, `escala_acabamento_${shift}`);
+            currentUnsubscribe = onValue(dbRef, (snapshot) => {
                 const data = snapshot.val() || {};
                 callback(data);
             });
@@ -64,12 +63,83 @@
             padding: 15px;
         }
 
-        .header-container {
+        /* TELA DE LOGIN */
+        .login-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #121212;
             display: flex;
             align-items: center;
             justify-content: center;
+            z-index: 9999;
+        }
+
+        .login-card {
+            background: #2a2a2a;
+            padding: 30px;
+            border-radius: 12px;
+            border: 1px solid #444;
+            width: 100%;
+            max-width: 360px;
+            display: flex;
+            flex-direction: column;
             gap: 15px;
-            margin-bottom: 10px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+            text-align: center;
+        }
+
+        .login-card h2 {
+            font-size: 20px;
+            color: #3498db;
+        }
+
+        .login-card input {
+            background: #181818;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 10px;
+            font-size: 14px;
+            border-radius: 6px;
+        }
+
+        .login-card button {
+            background: #27ae60;
+            color: white;
+            font-weight: bold;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+        }
+
+        .login-card button:hover {
+            background: #219150;
+        }
+
+        .login-error {
+            color: #e74c3c;
+            font-size: 12px;
+            display: none;
+        }
+
+        /* PAINEL DE USUÁRIO / HEADER */
+        .header-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            background: #2a2a2a;
+            padding: 10px 20px;
+            border-radius: 10px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
         }
 
         .header-logo {
@@ -79,9 +149,33 @@
         }
 
         h1 {
-            text-align: center;
+            font-size: 20px;
             margin: 0;
-            font-size: 22px;
+        }
+
+        .user-info-badge {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+            background: #181818;
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid #444;
+        }
+
+        .btn-logout {
+            background: #e74c3c;
+            color: white;
+            padding: 4px 10px;
+            font-size: 11px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-logout:hover {
+            background: #c0392b;
         }
 
         h2 {
@@ -219,7 +313,6 @@
             background-color: #a93226;
         }
 
-        /* POOL DE DISPONÍVEIS COMPACTA E EXPANSÍVEL */
         .people-pool {
             min-height: 180px;
             background: #333;
@@ -331,7 +424,6 @@
             width: 100%;
         }
 
-        /* CAMPO DE FUTEBOL E REDIMENSIONAMENTO DINÂMICO DAS MÁQUINAS */
         .soccer-field {
             background: #27ae60;
             background-image: 
@@ -442,13 +534,44 @@
             flex-direction: column;
             gap: 6px;
         }
+
+        /* Banner de aviso para operadores (somente leitura) */
+        .read-only-notice {
+            background: #d35400;
+            color: white;
+            text-align: center;
+            padding: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            border-radius: 6px;
+            display: none;
+        }
     </style>
 </head>
-<body onload="initField()">
+<body onload="checkLoginSession()">
 
+    <!-- MODAL DE LOGIN -->
+    <div id="loginOverlay" class="login-overlay">
+        <div class="login-card">
+            <h2>🔐 Acesso ao Sistema</h2>
+            <div id="loginError" class="login-error">Usuário ou senha incorretos!</div>
+            <input type="text" id="usernameInput" placeholder="Usuário" autocomplete="off">
+            <input type="password" id="passwordInput" placeholder="Senha">
+            <button onclick="handleLogin()">Entrar</button>
+        </div>
+    </div>
+
+    <!-- CABEÇALHO DO SISTEMA -->
     <div class="header-container">
-        <img src="https://raw.githubusercontent.com/Ramon-Moraes/tripulacao/main/logo.jpg" alt="Logo Acabamento" class="header-logo" onerror="this.style.display='none'">
-        <h1>⚽ Escalação de Equipamentos & Folgas</h1>
+        <div class="header-left">
+            <img src="https://raw.githubusercontent.com/Ramon-Moraes/tripulacao/main/logo.jpg" alt="Logo Acabamento" class="header-logo" onerror="this.style.display='none'">
+            <h1>⚽ Escalação de Equipamentos & Folgas</h1>
+        </div>
+        <div class="user-info-badge">
+            <span id="userShiftBadge">Turno: --</span>
+            <span id="userRoleBadge" style="font-weight: bold; color: #f1c40f;">--</span>
+            <button class="btn-logout" onclick="logout()">Sair 🚪</button>
+        </div>
     </div>
     
     <!-- Banner com Seletor de Data -->
@@ -467,9 +590,11 @@
 
     <div class="main-container">
         <!-- Painel Lateral Esquerdo: Cadastro e Ações -->
-        <div class="panel">
+        <div class="panel" id="adminPanel">
             <h2>Cadastrar Pessoa</h2>
-            <div class="input-group">
+            <div id="readOnlyMsg" class="read-only-notice">👀 Modo Visualização (Apenas Operador)</div>
+
+            <div class="input-group admin-only">
                 <input type="text" id="personName" placeholder="Nome do Colaborador">
                 <label for="statusSelect">Situação / Folga:</label>
                 <select id="statusSelect">
@@ -483,11 +608,11 @@
                 <button onclick="addPerson()">Adicionar Colaborador</button>
             </div>
 
-            <hr style="border: 0; border-top: 1px solid #444; margin: 5px 0;">
+            <hr class="admin-only" style="border: 0; border-top: 1px solid #444; margin: 5px 0;">
 
-            <button class="btn-copy" onclick="copyPreviousDaySchedule()">📋 Copiar Escala do Dia Anterior</button>
-            <button class="btn-reset" onclick="resetToPool()">🔄 Resetar Escala Deste Dia</button>
-            <button class="btn-clear" onclick="selectAndRemovePerson()">🗑️ Excluir um Colaborador...</button>
+            <button class="btn-copy admin-only" onclick="copyPreviousDaySchedule()">📋 Copiar Escala do Dia Anterior</button>
+            <button class="btn-reset admin-only" onclick="resetToPool()">🔄 Resetar Escala Deste Dia</button>
+            <button class="btn-clear admin-only" onclick="selectAndRemovePerson()">🗑️ Excluir um Colaborador...</button>
         </div>
 
         <!-- Coluna Central: Campo + Disponíveis -->
@@ -496,7 +621,7 @@
 
             <div class="pool-container-panel">
                 <h2>Disponíveis / Em Turno</h2>
-                <p style="font-size: 11px; color: #aaa; text-align: center;">Arraste para o campo para atribuir à máquina:</p>
+                <p id="dragInstructions" style="font-size: 11px; color: #aaa; text-align: center;">Arraste para o campo para atribuir à máquina:</p>
                 <div id="pool" class="people-pool" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
             </div>
         </div>
@@ -535,6 +660,21 @@
     </div>
 
     <script>
+        // CONFIGURAÇÃO DOS USUÁRIOS
+        const USERS = {
+            // Supervisores (Poder de Edição)
+            'suptm': { pass: 'supitiatm', shift: 'TM', role: 'supervisor', title: 'Supervisor - Turno Manhã' },
+            'suptt': { pass: 'supitiatt', shift: 'TT', role: 'supervisor', title: 'Supervisor - Turno Tarde' },
+            'suptn': { pass: 'supitiatn', shift: 'TN', role: 'supervisor', title: 'Supervisor - Turno Noite' },
+
+            // Operadores (Somente Visualização)
+            'usertm': { pass: 'itiatm', shift: 'TM', role: 'operador', title: 'Operador - Turno Manhã' },
+            'usertt': { pass: 'itiatt', shift: 'TT', role: 'operador', title: 'Operador - Turno Tarde' },
+            'usertn': { pass: 'itiatn', shift: 'TN', role: 'operador', title: 'Operador - Turno Noite' }
+        };
+
+        let currentUser = null;
+
         const machines = [
             { id: 'SUPERVISOR', name: '📋 Supervisor / Treinador', capacity: 2, isSupervisor: true },
             { id: 'AP2', capacity: 2 },
@@ -550,6 +690,57 @@
         let idCounter = 0;
         let selectedOffGroups = [];
         let globalDatabaseData = { pessoas: [], escalas: {} };
+
+        // SISTEMA DE AUTENTICAÇÃO
+        function handleLogin() {
+            const userVal = document.getElementById('usernameInput').value.trim().toLowerCase();
+            const passVal = document.getElementById('passwordInput').value.trim();
+            const errEl = document.getElementById('loginError');
+
+            if (USERS[userVal] && USERS[userVal].pass === passVal) {
+                errEl.style.display = 'none';
+                currentUser = USERS[userVal];
+                localStorage.setItem('tripulacao_logged_user', userVal);
+                
+                document.getElementById('loginOverlay').style.display = 'none';
+                initApp();
+            } else {
+                errEl.style.display = 'block';
+            }
+        }
+
+        function checkLoginSession() {
+            const savedUser = localStorage.getItem('tripulacao_logged_user');
+            if (savedUser && USERS[savedUser]) {
+                currentUser = USERS[savedUser];
+                document.getElementById('loginOverlay').style.display = 'none';
+                initApp();
+            } else {
+                document.getElementById('loginOverlay').style.display = 'flex';
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('tripulacao_logged_user');
+            window.location.reload();
+        }
+
+        function initApp() {
+            // Atualiza cabeçalho
+            document.getElementById('userShiftBadge').innerText = `Turno: ${currentUser.shift}`;
+            document.getElementById('userRoleBadge').innerText = currentUser.title;
+
+            // Ajusta permissões na UI
+            const isSupervisor = currentUser.role === 'supervisor';
+            document.querySelectorAll('.admin-only').forEach(el => {
+                el.style.display = isSupervisor ? 'block' : 'none';
+            });
+            document.getElementById('readOnlyMsg').style.display = isSupervisor ? 'none' : 'block';
+            document.getElementById('dragInstructions').innerText = isSupervisor ? 
+                'Arraste para o campo para atribuir à máquina:' : 'Visão somente leitura das atribuições.';
+
+            initField();
+        }
 
         function initDateInput() {
             const datePicker = document.getElementById('scheduleDatePicker');
@@ -639,8 +830,9 @@
 
             calculateSelectedDateOffs();
 
-            if (window.listenFirebase) {
-                window.listenFirebase((data) => {
+            // Escuta dados no nó do turno atual
+            if (window.listenFirebase && currentUser) {
+                window.listenFirebase(currentUser.shift, (data) => {
                     globalDatabaseData = data || { pessoas: [], escalas: {} };
                     renderCurrentView();
                 });
@@ -657,6 +849,7 @@
             const isOffOnSelectedDate = defaultOff && selectedOffGroups.includes(defaultOff);
             const isVacation = defaultOff === 'ferias';
             const isLeave = defaultOff === 'licenca';
+            const isSupervisor = currentUser && currentUser.role === 'supervisor';
 
             let displayName = rawName;
 
@@ -674,18 +867,27 @@
                 const offNum = defaultOff.replace('folga', 'F');
                 displayName = `[${offNum}] ${rawName} 🚫 [FOLGA]`;
             } else {
-                personCard.draggable = true;
-                personCard.ondragstart = drag;
+                personCard.draggable = isSupervisor;
+                if (isSupervisor) {
+                    personCard.ondragstart = drag;
+                }
                 const offNum = defaultOff.replace('folga', 'F');
                 displayName = `[${offNum}] ${rawName}`;
             }
 
+            let actionsHtml = '';
+            if (isSupervisor) {
+                actionsHtml = `
+                    <div class="card-actions">
+                        <button class="action-btn" onclick="changePersonOff('${id}')" title="Alterar Status / Folga">✏️</button>
+                        <button class="action-btn" onclick="removePerson('${id}')" title="Remover">✕</button>
+                    </div>
+                `;
+            }
+
             personCard.innerHTML = `
                 <span class="card-name">${displayName}</span>
-                <div class="card-actions">
-                    <button class="action-btn" onclick="changePersonOff('${id}')" title="Alterar Status / Folga">✏️</button>
-                    <button class="action-btn" onclick="removePerson('${id}')" title="Remover">✕</button>
-                </div>
+                ${actionsHtml}
             `;
 
             return personCard;
@@ -726,7 +928,6 @@
             const currentDateStr = getSelectedDateStr();
             const dailySchedule = (globalDatabaseData.escalas && globalDatabaseData.escalas[currentDateStr]) || {};
 
-            // Ordena os colaboradores em ordem alfabética pelo nome
             people.sort((a, b) => a.rawName.localeCompare(b.rawName, 'pt-BR', { sensitivity: 'base' }));
 
             const poolCards = [];
@@ -759,6 +960,8 @@
         }
 
         function addPerson() {
+            if (currentUser.role !== 'supervisor') return;
+
             const nameInput = document.getElementById('personName');
             const statusSelect = document.getElementById('statusSelect');
             const rawName = nameInput.value.trim();
@@ -781,11 +984,13 @@
 
             nameInput.value = '';
             if (window.savePeopleList) {
-                window.savePeopleList(currentPeople);
+                window.savePeopleList(currentUser.shift, currentPeople);
             }
         }
 
         function changePersonOff(personId) {
+            if (currentUser.role !== 'supervisor') return;
+
             const currentPeople = globalDatabaseData.pessoas || [];
             const person = currentPeople.find(p => p.id === personId);
             if (!person) return;
@@ -810,12 +1015,13 @@
             person.defaultOff = targetOffKey;
             
             if (window.savePeopleList) {
-                window.savePeopleList(currentPeople);
+                window.savePeopleList(currentUser.shift, currentPeople);
             }
         }
 
-        // COPIAR ESCALA DO DIA ANTERIOR
         function copyPreviousDaySchedule() {
+            if (currentUser.role !== 'supervisor') return;
+
             const currentDateStr = getSelectedDateStr();
             const currentDate = new Date(currentDateStr + 'T00:00:00');
             currentDate.setDate(currentDate.getDate() - 1);
@@ -824,40 +1030,41 @@
             const prevSchedule = (globalDatabaseData.escalas && globalDatabaseData.escalas[prevDateStr]) || null;
 
             if (!prevSchedule || Object.keys(prevSchedule).length === 0) {
-                alert(`Não foi encontrada nenhuma escala registrada no dia anterior (${prevDateStr}).`);
+                alert(`Não foi encontrada nenhuma escala registrada no dia anterior (${prevDateStr}) para o turno ${currentUser.shift}.`);
                 return;
             }
 
-            if (confirm(`Deseja copiar a escala do dia anterior (${prevDateStr}) para o dia atual (${currentDateStr})?`)) {
+            if (confirm(`Deseja copiar a escala do dia anterior (${prevDateStr}) do turno ${currentUser.shift} para o dia atual (${currentDateStr})?`)) {
                 if (window.saveDailySchedule) {
-                    window.saveDailySchedule(currentDateStr, prevSchedule).then(() => {
+                    window.saveDailySchedule(currentUser.shift, currentDateStr, prevSchedule).then(() => {
                         alert('Escala do dia anterior copiada com sucesso!');
                     });
                 }
             }
         }
 
-        // RESET DA ESCALA DO DIA SELECIONADO
         function resetToPool() {
+            if (currentUser.role !== 'supervisor') return;
+
             const currentDateStr = getSelectedDateStr();
-            if (confirm(`Deseja realmente limpar a escala do dia ${currentDateStr}?`)) {
+            if (confirm(`Deseja realmente limpar a escala do dia ${currentDateStr} (${currentUser.shift})?`)) {
                 if (window.saveDailySchedule) {
-                    window.saveDailySchedule(currentDateStr, {}).then(() => {
+                    window.saveDailySchedule(currentUser.shift, currentDateStr, {}).then(() => {
                         renderCurrentView();
                     });
                 }
             }
         }
 
-        // SELECIONAR E APAGAR UM COLABORADOR
         function selectAndRemovePerson() {
+            if (currentUser.role !== 'supervisor') return;
+
             let currentPeople = globalDatabaseData.pessoas || [];
             if (currentPeople.length === 0) {
                 alert("Nenhum colaborador cadastrado para excluir.");
                 return;
             }
 
-            // Ordena alfabeticamente para exibir a lista organizada
             currentPeople.sort((a, b) => a.rawName.localeCompare(b.rawName, 'pt-BR', { sensitivity: 'base' }));
 
             let promptMsg = "Digite o NÚMERO do colaborador que deseja EXCLUIR do sistema:\n\n";
@@ -879,6 +1086,8 @@
         }
 
         function removePerson(personId) {
+            if (currentUser.role !== 'supervisor') return;
+
             let currentPeople = globalDatabaseData.pessoas || [];
             const person = currentPeople.find(p => p.id === personId);
             const nameStr = person ? person.rawName : 'este colaborador';
@@ -886,16 +1095,19 @@
             if (confirm(`Tem certeza que deseja excluir "${nameStr}" do cadastro?`)) {
                 currentPeople = currentPeople.filter(p => p.id !== personId);
                 if (window.savePeopleList) {
-                    window.savePeopleList(currentPeople);
+                    window.savePeopleList(currentUser.shift, currentPeople);
                 }
             }
         }
 
         function allowDrop(ev) {
+            if (currentUser.role !== 'supervisor') return;
             ev.preventDefault();
         }
 
         function drag(ev) {
+            if (currentUser.role !== 'supervisor') return;
+
             const card = ev.target;
             if (card.classList.contains('blocked-off') || card.classList.contains('blocked-vacation') || card.classList.contains('blocked-leave')) {
                 ev.preventDefault();
@@ -906,6 +1118,8 @@
         }
 
         function drop(ev) {
+            if (currentUser.role !== 'supervisor') return;
+
             ev.preventDefault();
             const data = ev.dataTransfer.getData("text");
             const draggedElement = document.getElementById(data);
@@ -977,6 +1191,8 @@
         }
 
         function saveCurrentDailySchedule() {
+            if (currentUser.role !== 'supervisor') return;
+
             const currentDateStr = getSelectedDateStr();
             const scheduleData = {};
 
@@ -991,7 +1207,7 @@
             });
 
             if (window.saveDailySchedule) {
-                window.saveDailySchedule(currentDateStr, scheduleData);
+                window.saveDailySchedule(currentUser.shift, currentDateStr, scheduleData);
             }
         }
     </script>
