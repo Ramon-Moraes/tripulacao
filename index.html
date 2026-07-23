@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Escala de Tripulação & Folgas TM - Acabamento</title>
+    <title>Escala de Tripulação & Folgas - Acabamento</title>
     
     <!-- SDKs do Firebase -->
     <script type="module">
@@ -23,15 +23,22 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        const dbRef = ref(db, 'escala_acabamento');
 
-        window.firebaseSetData = function(data) {
-            set(dbRef, data).catch(err => console.error("Erro ao salvar online:", err));
+        // Salva colaboradores cadastrados
+        window.savePeopleList = function(people) {
+            set(ref(db, 'escala_acabamento/pessoas'), people).catch(err => console.error("Erro ao salvar pessoas:", err));
         };
 
-        window.firebaseListenData = function(callback) {
-            onValue(dbRef, (snapshot) => {
-                const data = snapshot.val();
+        // Salva a escala de uma data específica (Formato YYYY-MM-DD)
+        window.saveDailySchedule = function(dateStr, scheduleData) {
+            return set(ref(db, `escala_acabamento/escalas/${dateStr}`), scheduleData)
+                .catch(err => console.error("Erro ao salvar escala:", err));
+        };
+
+        // Escuta atualizações no banco de dados
+        window.listenFirebase = function(callback) {
+            onValue(ref(db, 'escala_acabamento'), (snapshot) => {
+                const data = snapshot.val() || {};
                 callback(data);
             });
         };
@@ -51,7 +58,6 @@
             padding: 20px;
         }
 
-        /* Estrutura do Cabeçalho com a Logo no Título */
         .header-container {
             display: flex;
             align-items: center;
@@ -78,25 +84,56 @@
             font-size: 18px;
         }
 
+        /* Banner de Seleção de Data */
         .date-banner {
             text-align: center;
-            background: #333;
-            padding: 10px;
-            border-radius: 8px;
-            max-width: 600px;
+            background: #2a2a2a;
+            padding: 12px 20px;
+            border-radius: 10px;
+            max-width: 700px;
             margin: 0 auto 20px auto;
-            border: 1px solid #444;
-            font-size: 14px;
+            border: 2px solid #3498db;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
         }
 
-        .date-banner strong {
+        .date-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .date-picker-input {
+            background: #111;
             color: #f1c40f;
+            font-weight: bold;
+            font-size: 16px;
+            padding: 8px 12px;
+            border: 1px solid #555;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .date-nav-btn {
+            background: #3498db;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 5px;
+            font-size: 13px;
+        }
+
+        .date-nav-btn:hover {
+            background: #2980b9;
         }
 
         .status-sync {
             font-size: 11px;
             color: #2ecc71;
-            margin-top: 4px;
         }
 
         .main-container {
@@ -167,7 +204,6 @@
             background-color: #a93226;
         }
 
-        /* Área de Disponíveis Otimizada para até 20+ Pessoas */
         .people-pool {
             min-height: 120px;
             max-height: 260px;
@@ -182,7 +218,6 @@
             align-content: start;
         }
 
-        /* Estilização da barra de rolagem da pool */
         .people-pool::-webkit-scrollbar {
             width: 8px;
         }
@@ -193,9 +228,6 @@
         .people-pool::-webkit-scrollbar-thumb {
             background: #555;
             border-radius: 4px;
-        }
-        .people-pool::-webkit-scrollbar-thumb:hover {
-            background: #777;
         }
 
         .person-card {
@@ -220,12 +252,10 @@
             cursor: grabbing;
         }
 
-        /* Cartões ajustados quando dentro das posições do campo */
         .drop-slots .person-card {
             width: 100%;
         }
 
-        /* Estilos para cartões bloqueados */
         .person-card.blocked-off {
             background-color: #c0392b !important;
             cursor: not-allowed !important;
@@ -384,7 +414,6 @@
             gap: 5px;
         }
 
-        /* Container de Disponíveis abaixo do campo */
         .pool-container-panel {
             background-color: #2a2a2a;
             padding: 15px;
@@ -397,19 +426,27 @@
 </head>
 <body>
 
-    <!-- Cabeçalho Principal com Logo e Título -->
     <div class="header-container">
         <img src="https://raw.githubusercontent.com/Ramon-Moraes/tripulacao/main/logo.jpg" alt="Logo Acabamento" class="header-logo" onerror="this.style.display='none'">
         <h1>⚽ Escalação de Equipamentos & Folgas</h1>
     </div>
     
-    <div class="date-banner" id="dateBanner">
-        📅 Data Atual: <strong id="currentDateStr">--/--/----</strong> | Folga(s) de Hoje (6x2): <strong id="todayOffStr">Calculando...</strong>
+    <!-- Banner com Seletor de Data -->
+    <div class="date-banner">
+        <div class="date-controls">
+            <button class="date-nav-btn" onclick="changeDate(-1)">◀ Dia Anterior</button>
+            <label for="scheduleDatePicker" style="font-size: 14px; font-weight: bold;">Montar Escala para:</label>
+            <input type="date" id="scheduleDatePicker" class="date-picker-input" onchange="onDateChange()">
+            <button class="date-nav-btn" onclick="changeDate(1)">Próximo Dia ▶</button>
+        </div>
+        <div>
+            Folga(s) Prevista(s) para a Data: <strong id="todayOffStr" style="color:#f1c40f;">Calculando...</strong>
+        </div>
         <div class="status-sync" id="syncStatus">🌐 Sincronização Online Ativa</div>
     </div>
 
     <div class="main-container">
-        <!-- Painel Lateral Esquerdo: Cadastro e Ações gerais -->
+        <!-- Painel Lateral Esquerdo: Cadastro -->
         <div class="panel">
             <h2>Cadastrar Pessoa</h2>
             <div class="input-group">
@@ -428,27 +465,25 @@
 
             <hr style="border: 0; border-top: 1px solid #444; margin: 10px 0;">
 
-            <button class="btn-reset" onclick="resetToPool()">🔄 Resetar Escala do Campo</button>
-            <button class="btn-clear" onclick="clearAllData()">🗑️ Apagar Todos os Cadastros</button>
+            <button class="btn-reset" onclick="resetToPool()">🔄 Resetar Escala Deste Dia</button>
+            <button class="btn-clear" onclick="clearAllData()">🗑️ Apagar Colaboradores Cadastrados</button>
         </div>
 
-        <!-- Coluna Central: Campo de Futebol + Disponíveis Abaixo -->
+        <!-- Coluna Central: Campo + Disponíveis -->
         <div class="center-column">
-            <!-- Campo de Futebol -->
             <div class="soccer-field"></div>
 
-            <!-- Seção de Pessoas Disponíveis (Abaixo do Campo) -->
             <div class="pool-container-panel">
                 <h2>Disponíveis / Em Turno</h2>
-                <p style="font-size: 12px; color: #aaa; text-align: center;">Arraste um colaborador desta área para as posições do campo acima:</p>
+                <p style="font-size: 12px; color: #aaa; text-align: center;">Arraste os disponíveis para o campo para salvar a escala do dia selecionado:</p>
                 <div id="pool" class="people-pool" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
             </div>
         </div>
 
-        <!-- Painel Lateral Direito: Grupos de Folga e Ausências -->
+        <!-- Painel Lateral Direito: Grupos -->
         <div class="panel">
             <h2>Integrantes por Grupo</h2>
-            <p style="font-size: 11px; color: #aaa; margin-top:-10px; text-align: center;">Visualização fixa por status:</p>
+            <p style="font-size: 11px; color: #aaa; margin-top:-10px; text-align: center;">Status na data selecionada:</p>
             <div class="off-zones">
                 <div class="off-group" id="group-folga1">
                     <h4>Folga 1 <span id="tag-folga1"></span></h4>
@@ -492,14 +527,35 @@
         ];
 
         let idCounter = 0;
-        let todayOffGroups = [];
+        let selectedOffGroups = [];
+        let globalDatabaseData = { pessoas: [], escalas: {} };
 
-        function calculateTodayOffs() {
+        // Define a data padrão para hoje (YYYY-MM-DD)
+        function initDateInput() {
+            const datePicker = document.getElementById('scheduleDatePicker');
             const today = new Date();
-            const currentDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-            
-            const refDate = new Date(2026, 6, 22);
-            const diffTime = currentDate - refDate;
+            datePicker.value = today.toISOString().split('T')[0];
+        }
+
+        function getSelectedDateStr() {
+            return document.getElementById('scheduleDatePicker').value;
+        }
+
+        function changeDate(days) {
+            const datePicker = document.getElementById('scheduleDatePicker');
+            const currentDate = new Date(datePicker.value + 'T00:00:00');
+            currentDate.setDate(currentDate.getDate() + days);
+            datePicker.value = currentDate.toISOString().split('T')[0];
+            onDateChange();
+        }
+
+        function calculateSelectedDateOffs() {
+            const dateStr = getSelectedDateStr();
+            if (!dateStr) return;
+
+            const selectedDate = new Date(dateStr + 'T00:00:00');
+            const refDate = new Date(2026, 6, 22); // Data base de referência
+            const diffTime = selectedDate - refDate;
             const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
             
             const offOffsets = {
@@ -509,18 +565,17 @@
                 'folga1': 6
             };
 
-            todayOffGroups = [];
+            selectedOffGroups = [];
 
             for (let offKey in offOffsets) {
                 let cycleDay = ((diffDays - offOffsets[offKey]) % 8 + 8) % 8;
                 if (cycleDay === 7 || cycleDay === 0) {
-                    todayOffGroups.push(offKey);
+                    selectedOffGroups.push(offKey);
                 }
             }
 
-            document.getElementById('currentDateStr').innerText = currentDate.toLocaleDateString('pt-BR');
-            if (todayOffGroups.length > 0) {
-                const names = todayOffGroups.map(f => f.replace('folga', 'Folga ')).join(', ');
+            if (selectedOffGroups.length > 0) {
+                const names = selectedOffGroups.map(f => f.replace('folga', 'Folga ')).join(', ');
                 document.getElementById('todayOffStr').innerText = names + ' 🏖️';
             } else {
                 document.getElementById('todayOffStr').innerText = 'Nenhuma';
@@ -529,9 +584,9 @@
             ['folga1', 'folga2', 'folga3', 'folga4'].forEach(key => {
                 const groupEl = document.getElementById(`group-${key}`);
                 const tagEl = document.getElementById(`tag-${key}`);
-                if (todayOffGroups.includes(key)) {
+                if (selectedOffGroups.includes(key)) {
                     groupEl.classList.add('active-today');
-                    tagEl.innerText = '(FOLGANDO HOJE)';
+                    tagEl.innerText = '(FOLGANDO)';
                 } else {
                     groupEl.classList.remove('active-today');
                     tagEl.innerText = '';
@@ -539,9 +594,14 @@
             });
         }
 
-        function initField() {
-            calculateTodayOffs();
+        function onDateChange() {
+            calculateSelectedDateOffs();
+            renderCurrentView();
+        }
 
+        function initField() {
+            initDateInput();
+            
             const field = document.querySelector('.soccer-field');
             field.innerHTML = '';
             machines.forEach(machine => {
@@ -556,7 +616,14 @@
                 field.appendChild(zone);
             });
 
-            setTimeout(loadSavedData, 500); 
+            calculateSelectedDateOffs();
+
+            if (window.listenFirebase) {
+                window.listenFirebase((data) => {
+                    globalDatabaseData = data || { pessoas: [], escalas: {} };
+                    renderCurrentView();
+                });
+            }
         }
 
         function createPersonCard(id, rawName, defaultOff) {
@@ -566,7 +633,7 @@
             personCard.dataset.rawName = rawName;
             personCard.dataset.defaultOff = defaultOff;
 
-            const isOffToday = defaultOff && todayOffGroups.includes(defaultOff);
+            const isOffOnSelectedDate = defaultOff && selectedOffGroups.includes(defaultOff);
             const isVacation = defaultOff === 'ferias';
             const isLeave = defaultOff === 'licenca';
 
@@ -580,7 +647,7 @@
                 personCard.classList.add('blocked-leave');
                 personCard.draggable = false;
                 displayName = `[LICENÇA] ${rawName} 🏥`;
-            } else if (isOffToday) {
+            } else if (isOffOnSelectedDate) {
                 personCard.classList.add('blocked-off');
                 personCard.draggable = false;
                 const offNum = defaultOff.replace('folga', 'F');
@@ -613,22 +680,55 @@
             allCards.forEach(card => {
                 const rawName = card.dataset.rawName;
                 const defaultOff = card.dataset.defaultOff;
-                const isOffToday = todayOffGroups.includes(defaultOff);
+                const isOffOnSelectedDate = selectedOffGroups.includes(defaultOff);
 
                 const container = document.getElementById(defaultOff);
                 if (container) {
                     const badge = document.createElement('div');
-                    badge.className = `off-fixed-badge ${isOffToday ? 'is-off-today' : ''}`;
+                    badge.className = `off-fixed-badge ${isOffOnSelectedDate ? 'is-off-today' : ''}`;
                     
                     let badgeText = rawName;
                     if (defaultOff === 'ferias') badgeText += ' (Férias)';
                     else if (defaultOff === 'licenca') badgeText += ' (Licença)';
-                    else if (isOffToday) badgeText += ' (Folgando)';
+                    else if (isOffOnSelectedDate) badgeText += ' (Folgando)';
 
                     badge.innerText = badgeText;
                     container.appendChild(badge);
                 }
             });
+        }
+
+        function renderCurrentView() {
+            // Limpa o campo e a pool para re-renderizar com o estado salvo da data
+            document.querySelectorAll('.person-card').forEach(card => card.remove());
+
+            const people = globalDatabaseData.pessoas || [];
+            const currentDateStr = getSelectedDateStr();
+            const dailySchedule = (globalDatabaseData.escalas && globalDatabaseData.escalas[currentDateStr]) || {};
+
+            people.forEach(person => {
+                const card = createPersonCard(person.id, person.rawName, person.defaultOff);
+                const isBlocked = person.defaultOff === 'ferias' || person.defaultOff === 'licenca' || selectedOffGroups.includes(person.defaultOff);
+
+                // Verifica se há salvamento para esse colaborador NESTA data exata
+                const assignedMachineId = dailySchedule[person.id];
+
+                if (assignedMachineId && assignedMachineId !== 'pool' && !isBlocked) {
+                    const machineContainer = document.getElementById(assignedMachineId);
+                    if (machineContainer) {
+                        machineContainer.appendChild(card);
+                        updateCardStyle(card, machineContainer);
+                        return;
+                    }
+                }
+
+                // Se não estiver em máquina nenhuma na data selecionada, vai para o pool
+                const pool = document.getElementById('pool');
+                pool.appendChild(card);
+                updateCardStyle(card, pool);
+            });
+
+            renderOffSideBadges();
         }
 
         function addPerson() {
@@ -645,33 +745,29 @@
             const personId = `person-${Date.now()}-${idCounter}`;
             const targetStatus = statusSelect.value;
             
-            const personCard = createPersonCard(personId, rawName, targetStatus);
-            const poolContainer = document.getElementById('pool');
-            poolContainer.appendChild(personCard);
-            updateCardStyle(personCard, poolContainer);
+            const currentPeople = globalDatabaseData.pessoas || [];
+            currentPeople.push({
+                id: personId,
+                rawName: rawName,
+                defaultOff: targetStatus
+            });
 
             nameInput.value = '';
-            renderOffSideBadges();
-            saveData();
+            if (window.savePeopleList) {
+                window.savePeopleList(currentPeople);
+            }
         }
 
         function changePersonOff(personId) {
-            const card = document.getElementById(personId);
-            if (!card) return;
-
-            const rawName = card.dataset.rawName;
-            const currentOff = card.dataset.defaultOff;
+            const currentPeople = globalDatabaseData.pessoas || [];
+            const person = currentPeople.find(p => p.id === personId);
+            if (!person) return;
 
             const option = prompt(
-                `Alterar situação de "${rawName}":\n\n` +
-                `1 - Folga 1\n` +
-                `2 - Folga 2\n` +
-                `3 - Folga 3\n` +
-                `4 - Folga 4\n` +
-                `F - Férias\n` +
-                `L - Licença / Atestado\n\n` +
+                `Alterar situação de "${person.rawName}":\n\n` +
+                `1 - Folga 1\n2 - Folga 2\n3 - Folga 3\n4 - Folga 4\nF - Férias\nL - Licença / Atestado\n\n` +
                 `Digite a opção desejada:`,
-                currentOff.startsWith('folga') ? currentOff.replace('folga', '') : currentOff.toUpperCase()[0]
+                person.defaultOff.startsWith('folga') ? person.defaultOff.replace('folga', '') : person.defaultOff.toUpperCase()[0]
             );
 
             if (option === null) return;
@@ -679,51 +775,32 @@
             const opt = option.trim().toUpperCase();
             let targetOffKey = '';
 
-            if (['1', '2', '3', '4'].includes(opt)) {
-                targetOffKey = `folga${opt}`;
-            } else if (opt === 'F') {
-                targetOffKey = 'ferias';
-            } else if (opt === 'L') {
-                targetOffKey = 'licenca';
-            } else {
-                alert('Opção inválida!');
-                return;
-            }
+            if (['1', '2', '3', '4'].includes(opt)) targetOffKey = `folga${opt}`;
+            else if (opt === 'F') targetOffKey = 'ferias';
+            else if (opt === 'L') targetOffKey = 'licenca';
+            else { alert('Opção inválida!'); return; }
 
-            const parent = card.parentElement;
-            const newCard = createPersonCard(personId, rawName, targetOffKey);
-
-            card.replaceWith(newCard);
+            person.defaultOff = targetOffKey;
             
-            if ((targetOffKey === 'ferias' || targetOffKey === 'licenca' || todayOffGroups.includes(targetOffKey)) && parent.classList.contains('drop-slots')) {
-                document.getElementById('pool').appendChild(newCard);
-                updateCardStyle(newCard, document.getElementById('pool'));
-            } else {
-                updateCardStyle(newCard, parent);
+            if (window.savePeopleList) {
+                window.savePeopleList(currentPeople);
             }
-
-            renderOffSideBadges();
-            saveData();
         }
 
         function resetToPool() {
-            const allCards = document.querySelectorAll('.person-card');
-            const pool = document.getElementById('pool');
-            
-            allCards.forEach(card => {
-                pool.appendChild(card);
-                updateCardStyle(card, pool);
-            });
-
-            saveData();
+            const currentDateStr = getSelectedDateStr();
+            if (confirm(`Deseja realmente limpar a escala do dia ${currentDateStr}?`)) {
+                if (window.saveDailySchedule) {
+                    window.saveDailySchedule(currentDateStr, {});
+                }
+            }
         }
 
         function removePerson(personId) {
-            const card = document.getElementById(personId);
-            if (card) {
-                card.remove();
-                renderOffSideBadges();
-                saveData();
+            let currentPeople = globalDatabaseData.pessoas || [];
+            currentPeople = currentPeople.filter(p => p.id !== personId);
+            if (window.savePeopleList) {
+                window.savePeopleList(currentPeople);
             }
         }
 
@@ -735,7 +812,7 @@
             const card = ev.target;
             if (card.classList.contains('blocked-off') || card.classList.contains('blocked-vacation') || card.classList.contains('blocked-leave')) {
                 ev.preventDefault();
-                alert('Colaborador indisponível para escala!');
+                alert('Colaborador indisponível nesta data!');
                 return;
             }
             ev.dataTransfer.setData("text", card.id);
@@ -750,7 +827,7 @@
             if (draggedElement.classList.contains('blocked-off') || 
                 draggedElement.classList.contains('blocked-vacation') || 
                 draggedElement.classList.contains('blocked-leave')) {
-                alert('Pessoa em férias, licença ou folga hoje! Ação bloqueada.');
+                alert('Pessoa em férias, licença ou folga nesta data! Ação bloqueada.');
                 return;
             }
 
@@ -762,9 +839,7 @@
                 target = targetCard.parentElement;
             }
 
-            while (target && 
-                   !target.classList.contains('drop-slots') && 
-                   !target.classList.contains('people-pool')) {
+            while (target && !target.classList.contains('drop-slots') && !target.classList.contains('people-pool')) {
                 target = target.parentElement;
             }
 
@@ -788,7 +863,9 @@
 
             target.appendChild(draggedElement);
             updateCardStyle(draggedElement, target);
-            saveData();
+            
+            // Salva a escala inteira da data corrente
+            saveCurrentDailySchedule();
         }
 
         function updateCardStyle(element, container) {
@@ -812,48 +889,33 @@
             }
         }
 
-        function saveData() {
-            const allCards = document.querySelectorAll('.person-card');
-            const dataToSave = [];
+        function saveCurrentDailySchedule() {
+            const currentDateStr = getSelectedDateStr();
+            const scheduleObj = {};
 
-            allCards.forEach(card => {
-                dataToSave.push({
-                    id: card.id,
-                    rawName: card.dataset.rawName,
-                    defaultOff: card.dataset.defaultOff,
-                    containerId: card.parentElement.id
-                });
+            // Mapeia onde está CADA colaborador no DOM no momento
+            document.querySelectorAll('.person-card').forEach(card => {
+                const parent = card.parentElement;
+                if (parent.classList.contains('drop-slots')) {
+                    scheduleObj[card.id] = parent.id; // Guarda ID da máquina
+                } else if (parent.id === 'pool') {
+                    scheduleObj[card.id] = 'pool'; // Marca explicitamente como no pool
+                }
             });
 
-            if (window.firebaseSetData) {
-                window.firebaseSetData(dataToSave);
-            }
-        }
+            // Atualiza a variável local antes para garantir resposta imediata
+            if (!globalDatabaseData.escalas) globalDatabaseData.escalas = {};
+            globalDatabaseData.escalas[currentDateStr] = scheduleObj;
 
-        function loadSavedData() {
-            if (window.firebaseListenData) {
-                window.firebaseListenData((parsedData) => {
-                    document.querySelectorAll('.person-card').forEach(card => card.remove());
-
-                    if (parsedData && Array.isArray(parsedData)) {
-                        parsedData.forEach(item => {
-                            const container = document.getElementById(item.containerId) || document.getElementById('pool');
-                            if (container) {
-                                const card = createPersonCard(item.id, item.rawName, item.defaultOff);
-                                container.appendChild(card);
-                                updateCardStyle(card, container);
-                            }
-                        });
-                    }
-                    renderOffSideBadges();
-                });
+            if (window.saveDailySchedule) {
+                window.saveDailySchedule(currentDateStr, scheduleObj);
             }
         }
 
         function clearAllData() {
-            if (confirm("Deseja realmente apagar TODOS os colaboradores cadastrados da nuvem?")) {
-                if (window.firebaseSetData) {
-                    window.firebaseSetData([]);
+            if (confirm("Deseja realmente apagar TODOS os colaboradores cadastrados do sistema?")) {
+                if (window.savePeopleList) {
+                    window.savePeopleList([]);
                 }
             }
         }
