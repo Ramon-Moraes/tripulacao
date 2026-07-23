@@ -11,7 +11,7 @@
         import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         // ⚠️ ATENÇÃO: Substitua pelos dados do seu projeto no Firebase
-       const firebaseConfig = {
+        const firebaseConfig = {
             apiKey: "AIzaSyDVk5pV6WIOIZCAg_98Zzz1LD95zcDMczw",
             authDomain: "banco-tripulacao.firebaseapp.com",
             databaseURL: "https://banco-tripulacao-default-rtdb.firebaseio.com",
@@ -438,7 +438,7 @@
         }
     </style>
 </head>
-<body>
+<body onload="initField()">
 
     <div class="header-container">
         <img src="https://raw.githubusercontent.com/Ramon-Moraes/tripulacao/main/logo.jpg" alt="Logo Acabamento" class="header-logo" onerror="this.style.display='none'">
@@ -489,7 +489,7 @@
 
             <div class="pool-container-panel">
                 <h2>Disponíveis / Em Turno</h2>
-                <p style="font-size: 11px; color: #aaa; text-align: center;">Arraste para o campo para atribuir à maquina:</p>
+                <p style="font-size: 11px; color: #aaa; text-align: center;">Arraste para o campo para atribuir à máquina:</p>
                 <div id="pool" class="people-pool" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
             </div>
         </div>
@@ -716,9 +716,14 @@
         function renderCurrentView() {
             document.querySelectorAll('.person-card').forEach(card => card.remove());
 
-            const people = globalDatabaseData.pessoas || [];
+            let people = globalDatabaseData.pessoas || [];
             const currentDateStr = getSelectedDateStr();
             const dailySchedule = (globalDatabaseData.escalas && globalDatabaseData.escalas[currentDateStr]) || {};
+
+            // Ordena os colaboradores em ordem alfabética pelo nome
+            people.sort((a, b) => a.rawName.localeCompare(b.rawName, 'pt-BR', { sensitivity: 'base' }));
+
+            const poolCards = [];
 
             people.forEach(person => {
                 const card = createPersonCard(person.id, person.rawName, person.defaultOff);
@@ -735,7 +740,12 @@
                     }
                 }
 
-                const pool = document.getElementById('pool');
+                poolCards.push(card);
+            });
+
+            // Insere os cartões do pool já ordenados
+            const pool = document.getElementById('pool');
+            poolCards.forEach(card => {
                 pool.appendChild(card);
                 updateCardStyle(card, pool);
             });
@@ -888,6 +898,7 @@
             updateCardStyle(draggedElement, target);
             
             saveCurrentDailySchedule();
+            renderCurrentView(); // Re-renderiza para manter o pool ordenado após soltar
         }
 
         function updateCardStyle(element, container) {
@@ -905,7 +916,7 @@
             }
 
             if (container.classList.contains('drop-slots')) {
-                element.style.backgroundColor = container.id === 'SUPERVISOR' ? '#f39c12' : '#27ae60';
+                element.style.backgroundColor = '#2ecc71';
             } else {
                 element.style.backgroundColor = '#3498db';
             }
@@ -913,26 +924,22 @@
 
         function saveCurrentDailySchedule() {
             const currentDateStr = getSelectedDateStr();
-            const scheduleObj = {};
+            const scheduleData = {};
 
-            document.querySelectorAll('.person-card').forEach(card => {
-                const parent = card.parentElement;
-                if (parent && parent.classList.contains('drop-slots')) {
-                    scheduleObj[card.id] = parent.id;
-                } else {
-                    scheduleObj[card.id] = 'pool';
+            machines.forEach(machine => {
+                const container = document.getElementById(machine.id);
+                if (container) {
+                    const cards = container.querySelectorAll('.person-card');
+                    cards.forEach(card => {
+                        scheduleData[card.id] = machine.id;
+                    });
                 }
             });
 
             if (window.saveDailySchedule) {
-                window.saveDailySchedule(currentDateStr, scheduleObj);
+                window.saveDailySchedule(currentDateStr, scheduleData);
             }
         }
-
-        // Inicializa o sistema ao carregar a página
-        window.addEventListener('DOMContentLoaded', () => {
-            initField();
-        });
     </script>
 </body>
 </html>
